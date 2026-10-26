@@ -1,0 +1,212 @@
+app:
+  description: 基于 Kubernetes 官方中文文档（CC BY 4.0）的知识库问答 Chatflow：混合检索 + 重排序 + 带引用回答。
+  icon: 📚
+  icon_background: '#E0F2FE'
+  mode: advanced-chat
+  name: K8s 中文文档知识库问答（RAG Demo）
+  use_icon_as_answer_icon: true
+# 模型供应商插件请在 Dify「设置 > 模型供应商」中自行安装（OpenAI / 通义千问 / DeepSeek 等均可），导入后在 LLM 节点切换模型即可
+dependencies: []
+kind: app
+version: 0.3.1
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      enabled: false
+    opening_statement: '你好！我是 Kubernetes 中文文档知识库助手，可以回答 Pod、Deployment、Service、ConfigMap、Secret、存储卷、污点与容忍度等概念问题。每个回答都会标注引用来源。'
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions:
+    - ConfigMap 和 Secret 有什么区别？
+    - Deployment 如何回滚到之前的版本？
+    - PersistentVolume 的回收策略有哪些？
+    - 什么是污点和容忍度？
+    suggested_questions_after_answer:
+      enabled: true
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: knowledge-retrieval
+      id: start-source-retrieval-target
+      source: start
+      sourceHandle: source
+      target: retrieval
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: retrieval-source-llm-target
+      source: retrieval
+      sourceHandle: source
+      target: llm
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: llm-source-answer-target
+      source: llm
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: 用户提问入口（sys.query）
+        selected: false
+        title: 开始
+        type: start
+        variables: []
+      height: 54
+      id: start
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        # 导入后请在此节点中重新选择你创建的"K8s 中文文档"知识库（知识库 ID 无法跨工作区迁移）
+        dataset_ids: []
+        desc: 混合检索（向量 0.7 + 关键词 0.3），Top 4，相关度阈值 0.4
+        multiple_retrieval_config:
+          reranking_enable: true
+          reranking_mode: weighted_score
+          score_threshold: 0.4
+          top_k: 4
+          weights:
+            keyword_setting:
+              keyword_weight: 0.3
+            vector_setting:
+              embedding_model_name: ''
+              embedding_provider_name: ''
+              vector_weight: 0.7
+        query_variable_selector:
+        - start
+        - sys.query
+        retrieval_mode: multiple
+        selected: false
+        title: 知识检索
+        type: knowledge-retrieval
+      height: 92
+      id: retrieval
+      position:
+        x: 384
+        y: 282
+      positionAbsolute:
+        x: 384
+        y: 282
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - retrieval
+          - result
+        desc: 只依据检索片段作答，并用 [编号] 标注引用
+        memory:
+          query_prompt_template: '{{#sys.query#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 6
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: system-prompt
+          role: system
+          text: '你是一个基于知识库回答问题的助手，知识库内容为 Kubernetes 官方中文文档。
+
+            请严格遵守：
+
+            1. 只根据<参考资料>中的内容回答，不要使用资料以外的知识，不要编造。
+
+            2. 每个关键结论后用 [编号] 标注引用来源，编号按参考资料出现的顺序从 1 开始。
+
+            3. 如果参考资料不足以回答，直接说"知识库中没有找到相关内容"，并建议用户换个问法。
+
+            4. 用简洁的中文回答，必要时使用列表；涉及配置时可给出简短 YAML 示例。
+
+            5. 回答末尾列出"参考来源"：[编号] 文档标题。
+
+
+            <参考资料>
+
+            {{#context#}}
+
+            </参考资料>'
+        selected: false
+        title: LLM 回答生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 98
+      id: llm
+      position:
+        x: 688
+        y: 282
+      positionAbsolute:
+        x: 688
+        y: 282
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        answer: '{{#llm.text#}}'
+        desc: 输出回答（界面会自动附带"引用与归属"）
+        selected: false
+        title: 直接回复
+        type: answer
+        variables: []
+      height: 105
+      id: answer
+      position:
+        x: 992
+        y: 282
+      positionAbsolute:
+        x: 992
+        y: 282
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.9

@@ -1,0 +1,7 @@
+fastembed>=0.9
+numpy>=1.26
+streamlit>=1.40
+requests>=2.31
+pyyaml>=6.0
+# 仅截图脚本需要：
+playwright>=1.45

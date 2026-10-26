@@ -1,0 +1,6 @@
+.venv/
+models/
+data/index.npy
+__pycache__/
+*.pyc
+.env
